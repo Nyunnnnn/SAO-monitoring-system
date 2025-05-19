@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Students Affairs - Events Attendance Monitoring</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    background-color: #592ea9cc;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.3);
+  }
+  header h1 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: 1px;
+  }
+  main {
+    flex: 1;
+    padding: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+    background: #f3f3f3;
+    color: #333;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  }
+  .scanner-section {
+    margin-bottom: 2rem;
+  }
+  label {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #592ea9;
+  }
+  input[type="text"] {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    border: 2px solid #592ea9;
+    outline: none;
+    transition: border-color 0.3s ease;
+  }
+  input[type="text"]:focus {
+    border-color: #764ba2;
+    box-shadow: 0 0 8px #764ba2;
+  }
+  button {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1.2rem;
+    background: #592ea9;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #764ba2;
+  }
+  .log-list {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+  }
+  .log-list table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .log-list th, .log-list td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    font-size: 1rem;
+  }
+  .log-list th {
+    background-color: #592ea9;
+    color: #fff;
+    position: sticky;
+    top: 0;
+  }
+  .message {
+    margin-top: 1rem;
+    font-weight: 600;
+  }
+  footer {
+    text-align: center;
+    padding: 1rem 0;
+    background-color: #592ea9cc;
+    color: #fff;
+    font-size: 0.9rem;
+  }
+  @media (max-width: 600px) {
+    main {
+      border-radius: 0;
+      box-shadow: none;
+      max-width: 100%;
+      padding: 1rem;
+    }
+    input[type="text"], button {
+      font-size: 1rem;
+    }
+    .log-list th, .log-list td {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Students Affairs - Events Attendance Monitoring</h1>
+</header>
+<main>
+  <section class="scanner-section">
+    <label for="barcode-input">Scan or Enter Student ID Barcode:</label>
+    <input type="text" id="barcode-input" placeholder="Scan or type student ID here" autofocus autocomplete="off" />
+    <button id="log-attendance-btn">Log Attendance</button>
+    <div class="message" id="message"></div>
+  </section>
+
+  <section class="log-list">
+    <h2>Attendance Log</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Student ID</th>
+          <th>Name</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody id="attendance-log-body">
+        <!-- Attendance entries go here -->
+      </tbody>
+    </table>
+  </section>
+</main>
+<footer>
+  &copy; 2024 Student Affairs Office
+</footer>
+
+<script>
+  // Dummy students database
+  const students = {
+    "S123456": { id: "S123456", name: "Alice Johnson" },
+    "S234567": { id: "S234567", name: "Bob Smith" },
+    "S345678": { id: "S345678", name: "Carla Gomez" },
+    "S456789": { id: "S456789", name: "David Lee" },
+    "S567890": { id: "S567890", name: "Eva Martinez" }
+  };
+
+  // Attendance log array
+  const attendanceLog = [];
+
+  // DOM Elements
+  const barcodeInput = document.getElementById('barcode-input');
+  const logAttendanceBtn = document.getElementById('log-attendance-btn');
+  const attendanceLogBody = document.getElementById('attendance-log-body');
+  const messageEl = document.getElementById('message');
+
+  // Format date/time nicely
+  function formatTimestamp(date) {
+    return date.toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+  }
+
+  // Add attendance record and update UI
+  function logAttendance(studentId) {
+    const student = students[studentId];
+    if (!student) {
+      showMessage(`Student ID "${studentId}" not found.`, "error");
+      return;
+    }
+    const now = new Date();
+    const timestampStr = formatTimestamp(now);
+
+    // Check if this student already logged in this session (optional)
+    // For now allow multiple entries per day/time.
+
+    attendanceLog.unshift({
+      id: student.id,
+      name: student.name,
+      timestamp: timestampStr
+    });
+
+    updateAttendanceUI();
+    showMessage(`Attendance logged: ${student.name} at ${timestampStr}`, "success");
+
+    // Clear input for next scan
+    barcodeInput.value = "";
+    barcodeInput.focus();
+  }
+
+  // Update attendance table UI
+  function updateAttendanceUI() {
+    attendanceLogBody.innerHTML = "";
+    attendanceLog.forEach((entry) => {
+      const row = document.createElement('tr');
+      const idCell = document.createElement('td');
+      idCell.textContent = entry.id;
+      const nameCell = document.createElement('td');
+      nameCell.textContent = entry.name;
+      const timeCell = document.createElement('td');
+      timeCell.textContent = entry.timestamp;
+      row.appendChild(idCell);
+      row.appendChild(nameCell);
+      row.appendChild(timeCell);
+      attendanceLogBody.appendChild(row);
+    });
+  }
+
+  // Show message for user feedback
+  function showMessage(msg, type) {
+    messageEl.textContent = msg;
+    if (type === "success") {
+      messageEl.style.color = "#3a9d23";
+    } else if (type === "error") {
+      messageEl.style.color = "#d43434";
+    } else {
+      messageEl.style.color = "#333";
+    }
+    // Clear message after 3.5 seconds
+    clearTimeout(messageEl.timeoutId);
+    messageEl.timeoutId = setTimeout(() => {
+      messageEl.textContent = "";
+    }, 3500);
+  }
+
+  // Event listeners
+  logAttendanceBtn.addEventListener('click', () => {
+    const val = barcodeInput.value.trim();
+    if (val.length === 0) {
+      showMessage("Please enter or scan a student ID barcode.", "error");
+      return;
+    }
+    logAttendance(val);
+  });
+
+  // Allow pressing Enter key on input to log attendance
+  barcodeInput.addEventListener('keydown', (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      logAttendanceBtn.click();
+    }
+  });
+</script>
+</body>
+</html>
+
