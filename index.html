@@ -2,323 +2,140 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SAO Student Monitoring System</title>
-
-  <!-- QR Code library -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SAO Monitoring System - Barcode Support</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
-  <!-- html5-qrcode for scanning -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0; padding: 0;
-      background: #f0f0f0;
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+    #login { display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; color: #fff; }
+    #login-box { background: #fff; color: #000; padding: 20px; border-radius: 10px; text-align: center; max-width: 320px; width: 90%; }
+    #app { display: none; padding: 20px; max-width: 800px; margin: auto; background: #fff; border-radius: 8px; }
+    input, button { 
+      padding: 10px; 
+      margin: 5px 0; 
+      width: 100%; 
+      box-sizing: border-box; 
+      max-width: 100%; 
     }
-    #login-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
-    #login-modal > div {
-      background: white;
-      padding: 20px;
-      border-radius: 6px;
-      width: 300px;
-      box-shadow: 0 0 10px #0003;
-    }
-    #login-modal h2 {
-      margin-top: 0;
-      text-align: center;
-    }
-    input[type=text], input[type=password] {
-      width: 100%;
-      padding: 8px;
-      margin: 8px 0;
-      box-sizing: border-box;
-    }
-    button {
-      padding: 10px 20px;
-      background: #0078d7;
-      border: none;
-      color: white;
-      cursor: pointer;
-      width: 100%;
-      font-size: 16px;
-      border-radius: 4px;
-    }
-    button:hover {
-      background: #005a9e;
-    }
-    .hidden { display: none; }
-
-    #app {
-      max-width: 800px;
-      margin: 20px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-top: 12px;
-      font-weight: bold;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 6px;
-      margin-top: 6px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-
-    #student-list {
-      margin-top: 20px;
-      border-collapse: collapse;
-      width: 100%;
-    }
-
-    #student-list th, #student-list td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-
-    #student-list th {
-      background: #0078d7;
-      color: white;
-    }
-
-    #qrcode {
-      margin-top: 10px;
-      text-align: center;
-    }
-
-    #scanner {
-      width: 100%;
-      margin-top: 20px;
-      text-align: center;
-      min-height: 300px;
-    }
-
-    #login-error {
-      color: red;
-      font-weight: bold;
-      text-align: center;
-      margin-top: 10px;
-      display: none;
-    }
-
-    @media (max-width: 600px) {
-      #app {
-        margin: 10px;
-        padding: 10px;
-      }
-    }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    #barcode-scanner { width: 100%; margin-top: 20px; }
+    canvas { margin-top: 10px; }
+    video { width: 100% !important; height: auto !important; }
   </style>
 </head>
 <body>
 
-<!-- Login modal -->
-<div id="login-modal">
-  <div>
+<div id="login">
+  <div id="login-box">
     <h2>Admin Login</h2>
-    <input id="username" type="text" placeholder="Username" autocomplete="username" />
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
-    <button onclick="authenticate()">Login</button>
-    <div id="login-error">Invalid username or password</div>
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <p id="login-error" style="color:red; display:none;">Invalid credentials</p>
   </div>
 </div>
 
-<!-- Main app -->
-<div id="app" class="hidden">
+<div id="app">
   <h1>SAO Student Monitoring System</h1>
 
-  <label for="student-name">Student Name</label>
-  <input id="student-name" type="text" placeholder="Enter student name" autocomplete="off" />
-
-  <label for="student-id">Student ID (barcode)</label>
-  <input id="student-id" type="text" placeholder="Enter or scan student ID" autocomplete="off" />
-
+  <input type="text" id="student-name" placeholder="Student Name" />
+  <input type="text" id="student-id" placeholder="Student ID (Barcode)" />
   <button onclick="addStudent()">Add Student</button>
 
+  <div id="barcode-scanner"></div>
   <div id="qrcode"></div>
 
-  <h2>Scan Student Barcode</h2>
-  <div id="scanner"></div>
-
-  <h2>Students List</h2>
-  <table id="student-list">
-    <thead>
-      <tr><th>Name</th><th>ID</th><th>QR Code</th></tr>
-    </thead>
-    <tbody id="students-tbody">
-    </tbody>
+  <table>
+    <thead><tr><th>Name</th><th>ID</th><th>QR</th></tr></thead>
+    <tbody id="student-table"></tbody>
   </table>
 </div>
 
 <script>
-  // Hardcoded admin credentials
-  const ADMIN_USERNAME = 'admin';
-  const ADMIN_PASSWORD = '1234';
+  const admin = { username: "admin", password: "1234" };
+  const students = [];
 
-  // Student storage
-  let students = [];
-
-  // Authentication
-  function authenticate() {
-    const user = document.getElementById('username').value.trim();
-    const pass = document.getElementById('password').value.trim();
-    const error = document.getElementById('login-error');
-
-    if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
-      document.getElementById('login-modal').style.display = 'none';
-      document.getElementById('app').classList.remove('hidden');
-      error.style.display = 'none';
-      startScanner();
+  function login() {
+    const user = document.getElementById("username").value;
+    const pass = document.getElementById("password").value;
+    if (user === admin.username && pass === admin.password) {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      startBarcodeScanner();
     } else {
-      error.style.display = 'block';
+      document.getElementById("login-error").style.display = "block";
     }
   }
 
-  // Add student & generate QR
   function addStudent() {
-    const nameInput = document.getElementById('student-name');
-    const idInput = document.getElementById('student-id');
-
-    const name = nameInput.value.trim();
-    const id = idInput.value.trim();
-
-    if (!name || !id) {
-      alert('Please enter both student name and ID.');
-      return;
-    }
-
-    // Check if ID already exists
-    if (students.find(s => s.id === id)) {
-      alert('Student ID already exists.');
-      return;
-    }
-
-    // Add student
+    const name = document.getElementById("student-name").value.trim();
+    const id = document.getElementById("student-id").value.trim();
+    if (!name || !id) return alert("Please fill in all fields");
     students.push({ name, id });
-    nameInput.value = '';
-    idInput.value = '';
-
-    // Refresh table & show QR code for new student
     renderStudents();
     generateQRCode(id);
+    document.getElementById("student-name").value = "";
+    document.getElementById("student-id").value = "";
   }
 
-  // Render students list with QR codes
   function renderStudents() {
-    const tbody = document.getElementById('students-tbody');
-    tbody.innerHTML = '';
-
-    students.forEach(({name, id}) => {
-      const tr = document.createElement('tr');
-
-      const tdName = document.createElement('td');
-      tdName.textContent = name;
-      tr.appendChild(tdName);
-
-      const tdId = document.createElement('td');
-      tdId.textContent = id;
-      tr.appendChild(tdId);
-
-      const tdQR = document.createElement('td');
-      const qrDiv = document.createElement('div');
-      tdQR.appendChild(qrDiv);
-
-      QRCode.toCanvas(id, { width: 80 }, (error, canvas) => {
-        if (!error) {
-          qrDiv.appendChild(canvas);
-        }
-      });
-
-      tr.appendChild(tdQR);
-
-      tbody.appendChild(tr);
+    const tbody = document.getElementById("student-table");
+    tbody.innerHTML = "";
+    students.forEach(s => {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${s.name}</td><td>${s.id}</td><td><canvas id="qr-${s.id}"></canvas></td>`;
+      tbody.appendChild(row);
+      QRCode.toCanvas(document.getElementById(`qr-${s.id}`), s.id);
     });
   }
 
-  // Generate QR code for given text in #qrcode div
   function generateQRCode(text) {
-    const qrDiv = document.getElementById('qrcode');
-    qrDiv.innerHTML = '';
-    QRCode.toCanvas(text, { width: 200 }, (error, canvas) => {
-      if (error) {
-        console.error(error);
-        alert('Failed to generate QR code');
+    const div = document.getElementById("qrcode");
+    div.innerHTML = "";
+    const canvas = document.createElement("canvas");
+    div.appendChild(canvas);
+    QRCode.toCanvas(canvas, text);
+  }
+
+  function startBarcodeScanner() {
+    Quagga.init({
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: document.querySelector("#barcode-scanner"),
+        constraints: {
+          width: 480,
+          height: 320,
+          facingMode: "environment"
+        }
+      },
+      decoder: {
+        readers: [
+          "code_128_reader",
+          "ean_reader",
+          "ean_8_reader",
+          "code_39_reader",
+          "upc_reader",
+          "upc_e_reader",
+          "codabar_reader"
+        ]
+      }
+    }, function(err) {
+      if (err) {
+        console.error(err);
+        alert("Error initializing barcode scanner: " + err);
         return;
       }
-      qrDiv.appendChild(canvas);
+      Quagga.start();
     });
-  }
 
-  // Start html5-qrcode scanner with barcode support
-  function startScanner() {
-    const scannerDiv = document.getElementById('scanner');
-    const html5QrCode = new Html5Qrcode("scanner");
-
-    function onScanSuccess(decodedText, decodedResult) {
-      html5QrCode.pause();
-      alert(`Scanned Student ID: ${decodedText}`);
-
-      const student = students.find(s => s.id === decodedText);
-      if (student) {
-        alert(`Student Found: ${student.name}`);
-      } else {
-        alert('Student not found in the system.');
-      }
-
-      setTimeout(() => html5QrCode.resume(), 2000);
-    }
-
-    function onScanFailure(error) {
-      // no action needed on failure for now
-    }
-
-    Html5Qrcode.getCameras().then(cameras => {
-      if (cameras && cameras.length) {
-        const cameraId = cameras[0].id;
-        html5QrCode.start(
-          cameraId,
-          {
-            fps: 10,
-            qrbox: 250,
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.CODE_39,
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.EAN_13,
-              Html5QrcodeSupportedFormats.EAN_8,
-            ]
-          },
-          onScanSuccess,
-          onScanFailure
-        ).catch(err => {
-          scannerDiv.innerHTML = `<p style="color:red;">Unable to start camera for scanning.</p>`;
-          console.error(err);
-        });
-      } else {
-        scannerDiv.innerHTML = '<p>No camera found.</p>';
-      }
-    }).catch(err => {
-      scannerDiv.innerHTML = `<p style="color:red;">Error accessing cameras.</p>`;
-      console.error(err);
+    Quagga.onDetected(data => {
+      const code = data.codeResult.code;
+      const found = students.find(s => s.id === code);
+      alert(found ? `Scanned: ${found.name} (ID: ${code})` : `Scanned ID not found: ${code}`);
     });
   }
 </script>
