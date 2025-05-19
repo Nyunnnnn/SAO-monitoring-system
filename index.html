@@ -1,143 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SAO Monitoring System - Barcode Support</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-
+  <title>SAO Monitoring System - QR & Barcode</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
-    #login { display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; color: #fff; }
-    #login-box { background: #fff; color: #000; padding: 20px; border-radius: 10px; text-align: center; max-width: 320px; width: 90%; }
-    #app { display: none; padding: 20px; max-width: 800px; margin: auto; background: #fff; border-radius: 8px; }
-    input, button { 
-      padding: 10px; 
-      margin: 5px 0; 
-      width: 100%; 
-      box-sizing: border-box; 
-      max-width: 100%; 
-    }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input, button { width: 100%; padding: 10px; margin: 10px 0; }
+    #reader { width: 100%; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
-    #barcode-scanner { width: 100%; margin-top: 20px; }
-    canvas { margin-top: 10px; }
-    video { width: 100% !important; height: auto !important; }
   </style>
 </head>
 <body>
 
-<div id="login">
-  <div id="login-box">
-    <h2>Admin Login</h2>
-    <input type="text" id="username" placeholder="Username" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="login()">Login</button>
-    <p id="login-error" style="color:red; display:none;">Invalid credentials</p>
-  </div>
-</div>
+<h2>SAO Student Monitoring System</h2>
 
-<div id="app">
-  <h1>SAO Student Monitoring System</h1>
+<input type="text" id="student-name" placeholder="Student Name">
+<input type="text" id="student-id" placeholder="Student ID">
+<button onclick="addStudent()">Add Student</button>
 
-  <input type="text" id="student-name" placeholder="Student Name" />
-  <input type="text" id="student-id" placeholder="Student ID (Barcode)" />
-  <button onclick="addStudent()">Add Student</button>
+<div id="reader"></div>
+<p id="scan-result">Waiting for scan...</p>
 
-  <div id="barcode-scanner"></div>
-  <div id="qrcode"></div>
-
-  <table>
-    <thead><tr><th>Name</th><th>ID</th><th>QR</th></tr></thead>
-    <tbody id="student-table"></tbody>
-  </table>
-</div>
+<table>
+  <thead><tr><th>Name</th><th>ID</th></tr></thead>
+  <tbody id="student-list"></tbody>
+</table>
 
 <script>
-  const admin = { username: "admin", password: "1234" };
   const students = [];
-
-  function login() {
-    const user = document.getElementById("username").value;
-    const pass = document.getElementById("password").value;
-    if (user === admin.username && pass === admin.password) {
-      document.getElementById("login").style.display = "none";
-      document.getElementById("app").style.display = "block";
-      startBarcodeScanner();
-    } else {
-      document.getElementById("login-error").style.display = "block";
-    }
-  }
 
   function addStudent() {
     const name = document.getElementById("student-name").value.trim();
     const id = document.getElementById("student-id").value.trim();
-    if (!name || !id) return alert("Please fill in all fields");
+    if (!name || !id) return alert("Please enter both fields.");
     students.push({ name, id });
-    renderStudents();
-    generateQRCode(id);
+    updateTable();
     document.getElementById("student-name").value = "";
     document.getElementById("student-id").value = "";
   }
 
-  function renderStudents() {
-    const tbody = document.getElementById("student-table");
+  function updateTable() {
+    const tbody = document.getElementById("student-list");
     tbody.innerHTML = "";
     students.forEach(s => {
       const row = document.createElement("tr");
-      row.innerHTML = `<td>${s.name}</td><td>${s.id}</td><td><canvas id="qr-${s.id}"></canvas></td>`;
+      row.innerHTML = `<td>${s.name}</td><td>${s.id}</td>`;
       tbody.appendChild(row);
-      QRCode.toCanvas(document.getElementById(`qr-${s.id}`), s.id);
     });
   }
 
-  function generateQRCode(text) {
-    const div = document.getElementById("qrcode");
-    div.innerHTML = "";
-    const canvas = document.createElement("canvas");
-    div.appendChild(canvas);
-    QRCode.toCanvas(canvas, text);
+  function handleScanSuccess(decodedText) {
+    const student = students.find(s => s.id === decodedText);
+    if (student) {
+      document.getElementById("scan-result").innerText = `✅ Scanned: ${student.name} (${student.id})`;
+    } else {
+      document.getElementById("scan-result").innerText = `❌ ID not found: ${decodedText}`;
+    }
   }
 
-  function startBarcodeScanner() {
-    Quagga.init({
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: document.querySelector("#barcode-scanner"),
-        constraints: {
-          width: 480,
-          height: 320,
-          facingMode: "environment"
-        }
-      },
-      decoder: {
-        readers: [
-          "code_128_reader",
-          "ean_reader",
-          "ean_8_reader",
-          "code_39_reader",
-          "upc_reader",
-          "upc_e_reader",
-          "codabar_reader"
-        ]
-      }
-    }, function(err) {
-      if (err) {
-        console.error(err);
-        alert("Error initializing barcode scanner: " + err);
-        return;
-      }
-      Quagga.start();
-    });
+  const html5QrCode = new Html5Qrcode("reader");
 
-    Quagga.onDetected(data => {
-      const code = data.codeResult.code;
-      const found = students.find(s => s.id === code);
-      alert(found ? `Scanned: ${found.name} (ID: ${code})` : `Scanned ID not found: ${code}`);
-    });
-  }
+  Html5Qrcode.getCameras().then(devices => {
+    if (devices && devices.length) {
+      html5QrCode.start(
+        { facingMode: "environment" }, // back camera
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        handleScanSuccess
+      );
+    }
+  }).catch(err => {
+    console.error("Camera access error:", err);
+    alert("Failed to access camera.");
+  });
 </script>
 
 </body>
